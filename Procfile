@@ -1,1 +1,2 @@
-web: waitress-serve --port=$PORT sheets_project.wsgi:application
+web: gunicorn sheets_project.wsgi:application
+
