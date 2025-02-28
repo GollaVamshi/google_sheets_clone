@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-gez_)^kfcws@g-ym(0k6&b%2(ssb(3c!f9k7=2z^vcr+p+6!_6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["google-sheets-clone-djz1.onrender.com", "127.0.0.1", "localhost"]
 
 
 # Application definition
