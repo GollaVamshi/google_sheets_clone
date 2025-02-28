@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets Clone</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .toolbar {
+            background: linear-gradient(90deg, #4285f4, #34a853);
+            padding: 10px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .toolbar .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 20px;
+            background-color: #ffffff;
+            color: #202124;
+            border: none;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        .toolbar .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .toolbar .btn.active {
+            background-color: #e8f0fe;
+            color: #4285f4;
+        }
+
+        .toolbar select, .toolbar input[type="color"] {
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #dadce0;
+            font-size: 14px;
+            height: 36px;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1400px;
+            padding: 20px;
+            margin: 0 auto;
+        }
+
+        .formula-bar {
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            border: 1px solid #dadce0;
+        }
+
+        .formula-bar label {
+            font-weight: 500;
+            color: #202124;
+            margin-right: 10px;
+            min-width: 60px;
+            font-size: 14px;
+        }
+
+        .formula-bar input {
+            flex-grow: 1;
+            border: none;
+            padding: 8px;
+            font-size: 14px;
+            outline: none;
+            background: transparent;
+        }
+
+        .formula-bar input:focus {
+            border-bottom: 2px solid #4285f4;
+        }
+
+        .spreadsheet {
+            border-collapse: separate;
+            border-spacing: 0;
+            background: #ffffff;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .spreadsheet th {
+            background: #f1f3f4;
+            border-bottom: 2px solid #dadce0;
+            border-right: 1px solid #dadce0;
+            padding: 10px;
+            font-weight: 600;
+            color: #202124;
+            text-align: center;
+            position: relative;
+            font-size: 14px;
+            height: 45px;
+            
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spreadsheet td {
+            border: 1px solid #dadce0;
+            padding: 0;
+            position: relative;
+            height: 45px;
+        }
+
+        .spreadsheet input {
+            width: 100%;
+            height: 45px;
+            border: none;
+            padding: 10px;
+            font-size: 14px;
+            color: #202124;
+            background: transparent;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .spreadsheet input:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 2px #4285f4;
+        }
+
+        .resizer {
+            position: absolute;
+            top: 0;
+            right: -3px;
+            width: 6px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 10;
+        }
+
+        .resizer:hover, .resizing {
+            background: #4285f4;
+        }
+
+        .chart-container {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            cursor: pointer;
+        }
+
+        .invalid {
+            box-shadow: inset 0 0 0 2px #ea4335 !important;
+        }
+
+        h2 {
+            color: #202124;
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .toolbar { padding: 8px; gap: 8px; }
+            .container { padding: 10px; }
+            .spreadsheet th, .spreadsheet input { font-size: 12px; padding: 8px; }
+            .formula-bar input { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button class="btn" onclick="addRow()">➕ Add Row</button>
+        <button class="btn" onclick="removeRow()">➖ Remove Row</button>
+        <button class="btn" onclick="addColumn()">➕ Add Column</button>
+        <button class="btn" onclick="removeColumn()">➖ Remove Column</button>
+        <button class="btn" id="boldBtn" onclick="toggleBold()">𝐁</button>
+        <button class="btn" id="italicBtn" onclick="toggleItalic()">𝐼</button>
+        <select class="btn" onchange="changeFontSize(this.value)">
+            <option value="">Size</option>
+            <option value="12px">12</option>
+            <option value="14px">14</option>
+            <option value="16px">16</option>
+            <option value="18px">18</option>
+        </select>
+        <input type="color" class="btn" onchange="changeColor(this.value)" style="width: 40px; padding: 0;" value="#202124">
+        <button class="btn" onclick="sortColumn()">🔼 Sort</button>
+        <button class="btn" onclick="filterColumn()">🔍 Filter</button>
+        <button class="btn" onclick="resetFilter()">🔄 Reset</button>
+        <button class="btn" onclick="trimCells()">✂️ Trim</button>
+        <button class="btn" onclick="convertCase('upper')">🔠 UPPER</button>
+        <button class="btn" onclick="convertCase('lower')">🔡 lower</button>
+        <button class="btn" onclick="removeDuplicates()">🗑 Dupes</button>
+        <button class="btn" onclick="findAndReplace()">🔍 Replace</button>
+        <button class="btn" onclick="saveSheet()">💾 Save</button>
+        <button class="btn" onclick="loadSheet()">📂 Load</button>
+        <button class="btn" onclick="createChart()">📊 Chart</button>
+    </div>
+    <div class="container">
+        <h2>Google Sheets Clone</h2>
+        <div class="formula-bar">
+            <label id="cell-label">Cell: </label>
+            <input type="text" id="formula-input" placeholder="Enter formula or value">
+        </div>
+        <table id="Sheet" class="spreadsheet">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#<div class="resizer"></div></th>
+                    <th style="width: 120px;">A<div class="resizer"></div></th>
+                    <th style="width: 120px;">B<div class="resizer"></div></th>
+                    <th style="width: 120px;">C<div class="resizer"></div></th>
+                    <th style="width: 120px;">D<div class="resizer"></div></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+    <script>
+        let dependencies = new Map();
+        let resizing = false;
+        let currentResizer;
+        let selectedCell = null;
+        let lastChartColumn = null;
+
+        document.addEventListener('DOMContentLoaded', initializeSheet);
+
+        function initializeSheet() {
+            let tbody = document.querySelector("#Sheet tbody");
+            tbody.innerHTML = "";
+            if (localStorage.getItem('spreadsheet')) {
+                loadSheet();
+            } else {
+                for (let i = 1; i <= 5; i++) addRow();
+            }
+            setupEventListeners();
+            setupResizers();
+            setupFormulaBar();
+            setupChartInteraction();
+        }
+
+        function addRow() {
+            let table = document.getElementById("Sheet").getElementsByTagName("tbody")[0];
+            let rowCount = table.rows.length + 1;
+            let newRow = table.insertRow();
+            let th = newRow.insertCell();
+            th.textContent = rowCount;
+            th.style.display = 'flex';
+            th.style.alignItems = 'center';
+            th.style.justifyContent = 'center';
+            let cols = document.getElementById("Sheet").rows[0].cells.length - 1;
+            for (let j = 1; j <= cols; j++) {
+                let td = newRow.insertCell();
+                let input = document.createElement('input');
+                input.type = 'text';
+                input.draggable = true;
+                input.dataset.col = String.fromCharCode(64 + j);
+                input.dataset.row = rowCount;
+                td.appendChild(input);
+            }
+            setupEventListeners();
+            updateDependencies();
+        }
+
+        function addColumn() {
+            let table = document.getElementById("Sheet");
+            let colCount = table.rows[0].cells.length - 1;
+            let newColLetter = String.fromCharCode(65 + colCount);
+            let theadRow = table.rows[0];
+            let th = document.createElement('th');
+            th.style.width = '120px';
+            th.textContent = newColLetter;
+            th.innerHTML += '<div class="resizer"></div>';
+            theadRow.appendChild(th);
+            for (let i = 1; i < table.rows.length; i++) {
+                let td = table.rows[i].insertCell();
+                let input = document.createElement('input');
+                input.type = 'text';
+                input.draggable = true;
+                input.dataset.col = newColLetter;
+                input.dataset.row = i;
+                td.appendChild(input);
+            }
+            setupEventListeners();
+            setupResizers();
+            updateFormulaBar();
+            updateDependencies();
+        }
+
+        function removeRow() {
+            let table = document.getElementById("Sheet").getElementsByTagName("tbody")[0];
+            if (table.rows.length > 1) table.deleteRow(-1);
+            updateDependencies();
+            updateFormulaBar();
+        }
+
+        function removeColumn() {
+            let table = document.getElementById("Sheet");
+            if (table.rows[0].cells.length > 2) {
+                for (let i = 0; i < table.rows.length; i++) table.rows[i].deleteCell(-1);
+            }
+            updateDependencies();
+            updateFormulaBar();
+        }
+
+        function evaluateFormula(formula, visited = new Set()) {
+            if (!formula.startsWith('=')) return formula;
+            let cellKey = selectedCell ? `${selectedCell.dataset.col}${selectedCell.dataset.row}` : null;
+            if (cellKey && visited.has(cellKey)) return "#CIRCULAR";
+            if (cellKey) visited.add(cellKey);
+
+            formula = formula.slice(1).toUpperCase();
+            let cellRefs = formula.match(/[A-Z]\d+/g);
+            if (cellRefs) {
+                let expr = formula;
+                for (let ref of cellRefs) {
+                    let input = document.querySelector(`input[data-col="${ref[0]}"][data-row="${ref.slice(1)}"]`);
+                    let val = input ? (input.value.startsWith('=') ? evaluateFormula(input.value, new Set(visited)) : Number(input.value) || 0) : 0;
+                    expr = expr.replace(ref, val);
+                }
+                try {
+                    return eval(expr);
+                } catch (e) {
+                    return "#ERROR";
+                }
+            }
+
+            let values = [];
+            if (formula.startsWith('SUM')) {
+                let range = formula.match(/[A-Z]\d+:[A-Z]\d+/);
+                if (range) values = getRangeValues(range[0]);
+                return values.reduce((a, b) => Number(a) + Number(b), 0);
+            }
+            if (formula.startsWith('AVERAGE')) {
+                let range = formula.match(/[A-Z]\d+:[A-Z]\d+/);
+                if (range) values = getRangeValues(range[0]);
+                return values.reduce((a, b) => Number(a) + Number(b), 0) / values.length;
+            }
+            if (formula.startsWith('MAX')) {
+                let range = formula.match(/[A-Z]\d+:[A-Z]\d+/);
+                if (range) values = getRangeValues(range[0]);
+                return Math.max(...values.map(Number));
+            }
+            if (formula.startsWith('MIN')) {
+                let range = formula.match(/[A-Z]\d+:[A-Z]\d+/);
+                if (range) values = getRangeValues(range[0]);
+                return Math.min(...values.map(Number));
+            }
+            if (formula.startsWith('COUNT')) {
+                let range = formula.match(/[A-Z]\d+:[A-Z]\d+/);
+                if (range) values = getRangeValues(range[0]);
+                return values.filter(v => !isNaN(Number(v)) && v !== '').length;
+            }
+            return formula;
+        }
+
+        function getRangeValues(range) {
+            let [start, end] = range.split(':');
+            let startCol = start.match(/[A-Z]/)[0].charCodeAt(0) - 64;
+            let startRow = parseInt(start.match(/\d+/)[0]);
+            let endCol = end.match(/[A-Z]/)[0].charCodeAt(0) - 64;
+            let endRow = parseInt(end.match(/\d+/)[0]);
+            let values = [];
+            for (let row = startRow; row <= endRow; row++) {
+                for (let col = startCol; col <= endCol; col++) {
+                    let input = document.querySelector(`input[data-col="${String.fromCharCode(64 + col)}"][data-row="${row}"]`);
+                    values.push(input ? input.value : 0);
+                }
+            }
+            return values;
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('input').forEach(input => {
+                input.removeEventListener('input', validateInput);
+                input.removeEventListener('focus', selectCell);
+                input.removeEventListener('dragstart', dragStart);
+                input.removeEventListener('dragover', dragOver);
+                input.removeEventListener('drop', drop);
+                input.addEventListener('input', validateInput);
+                input.addEventListener('focus', selectCell);
+                input.addEventListener('dragstart', dragStart);
+                input.addEventListener('dragover', dragOver);
+                input.addEventListener('drop', drop);
+            });
+        }
+
+        function setupResizers() {
+            document.querySelectorAll('.resizer').forEach(resizer => {
+                resizer.removeEventListener('mousedown', startResize);
+                resizer.addEventListener('mousedown', startResize);
+            });
+        }
+
+        function setupFormulaBar() {
+            const formulaInput = document.getElementById('formula-input');
+            formulaInput.removeEventListener('keydown', handleFormulaEnter);
+            formulaInput.addEventListener('keydown', handleFormulaEnter);
+        }
+
+        function handleFormulaEnter(e) {
+            if (e.key === 'Enter' && selectedCell) {
+                const value = e.target.value;
+                selectedCell.value = value.startsWith('=') ? evaluateFormula(value) : value;
+                if (value.startsWith('=')) {
+                    dependencies.set(`${selectedCell.dataset.col}${selectedCell.dataset.row}`, value);
+                    updateDependencies();
+                }
+                e.target.value = selectedCell.value;
+                updateFormulaBar();
+                if (lastChartColumn) createChart(lastChartColumn);
+            }
+        }
+
+        function selectCell(e) {
+            selectedCell = e.target;
+            updateFormulaBar();
+            updateFormattingButtons();
+        }
+
+        function updateFormulaBar() {
+            const cellLabel = document.getElementById('cell-label');
+            const formulaInput = document.getElementById('formula-input');
+            if (selectedCell) {
+                cellLabel.textContent = `Cell: ${selectedCell.dataset.col}${selectedCell.dataset.row}`;
+                formulaInput.value = dependencies.get(`${selectedCell.dataset.col}${selectedCell.dataset.row}`) || selectedCell.value;
+            } else {
+                cellLabel.textContent = "Cell: ";
+                formulaInput.value = "";
+            }
+        }
+
+        function updateFormattingButtons() {
+            const boldBtn = document.getElementById('boldBtn');
+            const italicBtn = document.getElementById('italicBtn');
+            boldBtn.classList.toggle('active', selectedCell && selectedCell.style.fontWeight === 'bold');
+            italicBtn.classList.toggle('active', selectedCell && selectedCell.style.fontStyle === 'italic');
+        }
+
+        function startResize(e) {
+            resizing = true;
+            currentResizer = e.target;
+            currentResizer.classList.add('resizing');
+            document.addEventListener('mousemove', resize);
+            document.addEventListener('mouseup', stopResize);
+        }
+
+        function resize(e) {
+            if (resizing) {
+                let th = currentResizer.parentElement;
+                let newWidth = e.clientX - th.getBoundingClientRect().left;
+                if (newWidth > 50) th.style.width = `${newWidth}px`;
+            }
+        }
+
+        function stopResize() {
+            resizing = false;
+            currentResizer.classList.remove('resizing');
+            document.removeEventListener('mousemove', resize);
+            document.removeEventListener('mouseup', stopResize);
+        }
+
+        function validateInput(e) {
+            let value = e.target.value;
+            if (value.startsWith('=')) e.target.classList.remove('invalid');
+            else if (!value) e.target.classList.remove('invalid');
+            else if (isNaN(value) && !Date.parse(value)) e.target.classList.add('invalid');
+            else e.target.classList.remove('invalid');
+            updateDependencies();
+            if (lastChartColumn) createChart(lastChartColumn);
+        }
+
+        function updateDependencies() {
+            dependencies.forEach((formula, cell) => {
+                let [col, row] = [cell[0], cell.slice(1)];
+                let input = document.querySelector(`input[data-col="${col}"][data-row="${row}"]`);
+                if (input) input.value = evaluateFormula(formula);
+            });
+        }
+
+        let draggedCell;
+        function dragStart(e) {
+            draggedCell = e.target;
+            let value = draggedCell.value;
+            e.dataTransfer.setData('text/plain', value);
+            if (value.startsWith('=')) e.dataTransfer.setData('formula', value);
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            if (e.target.tagName === 'INPUT') {
+                let value = e.dataTransfer.getData('text/plain');
+                let formula = e.dataTransfer.getData('formula');
+                if (formula) {
+                    let newFormula = adjustFormula(formula, draggedCell, e.target);
+                    e.target.value = evaluateFormula(newFormula);
+                    dependencies.set(`${e.target.dataset.col}${e.target.dataset.row}`, newFormula);
+                } else {
+                    e.target.value = value;
+                }
+                draggedCell.value = '';
+                updateDependencies();
+                if (lastChartColumn) createChart(lastChartColumn);
+            }
+        }
+
+        function adjustFormula(formula, sourceCell, targetCell) {
+            let colDiff = targetCell.dataset.col.charCodeAt(0) - sourceCell.dataset.col.charCodeAt(0);
+            let rowDiff = parseInt(targetCell.dataset.row) - parseInt(sourceCell.dataset.row);
+            return formula.replace(/[A-Z]\d+/g, ref => {
+                let col = ref.match(/[A-Z]/)[0];
+                let row = parseInt(ref.match(/\d+/)[0]);
+                let newCol = String.fromCharCode(col.charCodeAt(0) + colDiff);
+                let newRow = row + rowDiff;
+                return `${newCol}${newRow}`;
+            });
+        }
+
+        function toggleBold() {
+            if (selectedCell) {
+                selectedCell.style.fontWeight = selectedCell.style.fontWeight === 'bold' ? 'normal' : 'bold';
+                updateFormattingButtons();
+            }
+        }
+
+        function toggleItalic() {
+            if (selectedCell) {
+                selectedCell.style.fontStyle = selectedCell.style.fontStyle === 'italic' ? 'normal' : 'italic';
+                updateFormattingButtons();
+            }
+        }
+
+        function changeFontSize(size) {
+            if (selectedCell && size) selectedCell.style.fontSize = size;
+        }
+
+        function changeColor(color) {
+            if (selectedCell) selectedCell.style.color = color;
+        }
+
+        function sortColumn() {
+            let col = prompt("Enter column to sort (e.g., A):")?.toUpperCase();
+            if (!col || !/[A-Z]/.test(col)) return alert("Invalid column!");
+            let colIndex = col.charCodeAt(0) - 64;
+            if (colIndex > document.getElementById("Sheet").rows[0].cells.length - 1) return alert("Column does not exist!");
+            let tbody = document.querySelector("#Sheet tbody");
+            let rows = Array.from(tbody.rows);
+            rows.sort((a, b) => {
+                let aVal = a.cells[colIndex].querySelector('input').value;
+                let bVal = b.cells[colIndex].querySelector('input').value;
+                return isNaN(aVal) ? aVal.localeCompare(bVal) : Number(aVal) - Number(bVal);
+            });
+            rows.forEach(row => tbody.appendChild(row));
+            updateDependencies();
+        }
+
+        function filterColumn() {
+            let col = prompt("Enter column to filter (e.g., A):")?.toUpperCase();
+            if (!col || !/[A-Z]/.test(col)) return alert("Invalid column!");
+            let colIndex = col.charCodeAt(0) - 64;
+            if (colIndex > document.getElementById("Sheet").rows[0].cells.length - 1) return alert("Column does not exist!");
+            let value = prompt("Enter value to filter:");
+            let rows = document.querySelectorAll("#Sheet tbody tr");
+            rows.forEach(row => {
+                let cellValue = row.cells[colIndex].querySelector('input').value;
+                row.style.display = cellValue.includes(value) ? '' : 'none';
+            });
+        }
+
+        function resetFilter() {
+            document.querySelectorAll("#Sheet tbody tr").forEach(row => row.style.display = '');
+        }
+
+        function trimCells() {
+            document.querySelectorAll("input").forEach(cell => {
+                cell.value = cell.value.trim();
+            });
+            updateDependencies();
+            if (lastChartColumn) createChart(lastChartColumn);
+        }
+
+        function convertCase(type) {
+            document.querySelectorAll("input").forEach(cell => {
+                if (!cell.value.startsWith('=')) {
+                    cell.value = type === 'upper' ? cell.value.toUpperCase() : cell.value.toLowerCase();
+                }
+            });
+            if (lastChartColumn) createChart(lastChartColumn);
+        }
+
+        function removeDuplicates() {
+            let seen = new Set();
+            let rows = document.querySelectorAll("tbody tr");
+            rows.forEach(row => {
+                let rowData = Array.from(row.querySelectorAll('input')).map(input => input.value).join(",");
+                if (seen.has(rowData)) row.remove();
+                else seen.add(rowData);
+            });
+            updateDependencies();
+            if (lastChartColumn) createChart(lastChartColumn);
+        }
+
+        function findAndReplace() {
+            let findText = prompt("Enter text to find:");
+            if (!findText) return;
+            let replaceText = prompt("Enter replacement text:") || "";
+            document.querySelectorAll("input").forEach(cell => {
+                if (!cell.value.startsWith('=') && cell.value.includes(findText)) {
+                    cell.value = cell.value.replace(new RegExp(findText, 'g'), replaceText);
+                }
+            });
+            updateDependencies();
+            if (lastChartColumn) createChart(lastChartColumn);
+        }
+
+        function saveSheet() {
+            let data = [];
+            document.querySelectorAll("tbody tr").forEach(row => {
+                let rowData = Array.from(row.querySelectorAll('input')).map(input => ({
+                    value: input.value,
+                    style: {
+                        fontWeight: input.style.fontWeight,
+                        fontStyle: input.style.fontStyle,
+                        fontSize: input.style.fontSize,
+                        color: input.style.color
+                    }
+                }));
+                data.push(rowData);
+            });
+            localStorage.setItem('spreadsheet', JSON.stringify(data));
+            if (lastChartColumn) localStorage.setItem('lastChartColumn', lastChartColumn);
+            alert('Sheet saved!');
+        }
+
+        function loadSheet() {
+            let data = JSON.parse(localStorage.getItem('spreadsheet') || '[]');
+            let tbody = document.querySelector("#Sheet tbody");
+            tbody.innerHTML = '';
+            data.forEach((rowData, i) => {
+                addRow();
+                let inputs = tbody.rows[i].querySelectorAll('input');
+                rowData.forEach((cell, j) => {
+                    inputs[j].value = cell.value;
+                    Object.assign(inputs[j].style, cell.style);
+                });
+            });
+            updateDependencies();
+            lastChartColumn = localStorage.getItem('lastChartColumn');
+            if (lastChartColumn) setTimeout(() => createChart(lastChartColumn), 100);
+        }
+
+        function createChart(col) {
+            if (!col) col = prompt("Enter column for chart data (e.g., A):")?.toUpperCase();
+            if (!col || !/[A-Z]/.test(col)) {
+                alert("Invalid column!");
+                return;
+            }
+            let colIndex = col.charCodeAt(0) - 64;
+            if (colIndex > document.getElementById("Sheet").rows[0].cells.length - 1) {
+                alert("Column does not exist!");
+                return;
+            }
+            lastChartColumn = col;
+            let labels = [], data = [];
+            const inputs = document.querySelectorAll(`input[data-col="${col}"]`);
+            if (inputs.length === 0) {
+                alert(`No data in column ${col}!`);
+                return;
+            }
+            inputs.forEach((input, i) => {
+                labels.push(`Row ${i + 1}`);
+                data.push(Number(input.value) || 0);
+            });
+            const canvas = document.getElementById('myChart');
+            if (!canvas) {
+                console.error("Chart canvas not found!");
+                return;
+            }
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error("Failed to get 2D context for chart!");
+                return;
+            }
+
+            if (window.myChart && typeof window.myChart.destroy === 'function') {
+                window.myChart.destroy();
+            } else if (window.myChart) {
+                console.warn("window.myChart exists but is not a Chart instance:", window.myChart);
+                window.myChart = null;
+            }
+
+            try {
+                window.myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `Column ${col}`,
+                            data: data,
+                            backgroundColor: 'rgba(66, 133, 244, 0.5)',
+                            borderColor: 'rgba(66, 133, 244, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Value' } } },
+                        plugins: {
+                            legend: { labels: { font: { size: 16, family: 'Roboto' } } },
+                            title: { display: true, text: `Chart for ${col}`, font: { size: 20 } }
+                        }
+                    }
+                });
+                console.log("Chart created successfully");
+            } catch (error) {
+                console.error("Error creating chart:", error);
+                alert("Failed to create chart. Check console for details.");
+                window.myChart = null;
+            }
+        }
+
+        function setupChartInteraction() {
+            const chartCanvas = document.getElementById('myChart');
+            chartCanvas.removeEventListener('click', handleChartClick);
+            chartCanvas.addEventListener('click', handleChartClick);
+        }
+
+        function handleChartClick() {
+            if (window.myChart) createChart();
+        }
+    </script>
+</body>
+</html>
